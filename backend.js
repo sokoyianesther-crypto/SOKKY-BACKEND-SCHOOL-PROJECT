@@ -1,4 +1,4 @@
-// ---------------- BACKEND.JS (JSON VERSION FOR RENDER) ---------------- //
+// ---------------- BACKEND.JS (JSON/API VERSION) ---------------- //
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -7,7 +7,9 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
+
+// Serve static files (e.g., search.js) if needed
+app.use("/static", express.static(__dirname));
 
 // ---------------- HELPERS ---------------- //
 function calculateAnalytics(buses) {
@@ -24,12 +26,9 @@ function calculateAnalytics(buses) {
 
 function formatBus(bus) {
     let formattedDate = "N/A";
-
     if (bus.date) {
         const d = new Date(bus.date);
-        if (!isNaN(d)) {
-            formattedDate = d.toLocaleDateString("en-CA"); // YYYY-MM-DD
-        }
+        if (!isNaN(d)) formattedDate = d.toLocaleDateString("en-CA"); // YYYY-MM-DD
     }
 
     return {
@@ -50,22 +49,11 @@ function formatBus(bus) {
     };
 }
 
-// ---------------- PAGES ---------------- //
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "main.html"));
-});
-
-app.get("/search.html", (req, res) => {
-    res.sendFile(path.join(__dirname, "search.html"));
-});
-
 // ---------------- API ---------------- //
 app.get("/api/buses", (req, res) => {
     let { from, to, date } = req.query;
 
-    if (!from || !to) {
-        return res.status(400).json({ error: "Missing 'from' or 'to' parameter" });
-    }
+    if (!from || !to) return res.status(400).json({ error: "Missing 'from' or 'to' parameter" });
 
     from = from.trim().toLowerCase();
     to = to.trim().toLowerCase();
@@ -102,4 +90,4 @@ app.get("/api/buses", (req, res) => {
 
 // ---------------- SERVER ---------------- //
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
