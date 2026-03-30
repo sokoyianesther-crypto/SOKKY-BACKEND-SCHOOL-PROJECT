@@ -1,6 +1,6 @@
-// ---------------- BACKEND.JS (FINAL FIXED VERSION) ---------------- //
+// ---------------- BACKEND.JS (JSON VERSION FOR RENDER) ---------------- //
 const express = require("express");
-const mysql = require("mysql2");
+const fs = require("fs");
 const path = require("path");
 
 const app = express();
@@ -8,29 +8,6 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
-
-// ---------------- DATABASE CONNECTION ---------------- //
-const dbConfig = {
-    host: "${{RAILWAY_PRIVATE_DOMAIN}}",
-    user: "root",
-    password: "${{MYSQL_ROOT_PASSWORD}}",
-    database: "railway",
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-};
-
-const db = mysql.createPool(dbConfig);
-
-// Test connection
-db.getConnection((err, connection) => {
-    if (err) {
-        console.error("Database connection failed:", err.message);
-    } else {
-        console.log("Database connected successfully");
-        connection.release();
-    }
-});
 
 // ---------------- HELPERS ---------------- //
 function calculateAnalytics(buses) {
@@ -50,9 +27,7 @@ function formatBus(bus) {
 
     if (bus.date) {
         const d = new Date(bus.date);
-
         if (!isNaN(d)) {
-            // ✅ FIX: NO timezone shifting
             formattedDate = d.toLocaleDateString("en-CA"); // YYYY-MM-DD
         }
     }
@@ -92,35 +67,37 @@ app.get("/api/buses", (req, res) => {
         return res.status(400).json({ error: "Missing 'from' or 'to' parameter" });
     }
 
-    from = from.trim();
-    to = to.trim();
+    from = from.trim().toLowerCase();
+    to = to.trim().toLowerCase();
 
-    let sql = `
-        SELECT * FROM travels
-        WHERE LOWER(TRIM(origin)) = LOWER(?)
-        AND LOWER(TRIM(destination)) = LOWER(?)
-    `;
-
-    const params = [from, to];
-    if (date) {
-        sql += ` AND DATE(date) = ?`;
-        params.push(date);
+    // Read JSON file
+    let rawData;
+    try {
+        rawData = fs.readFileSync(path.join(__dirname, "travels.json"), "utf-8");
+    } catch (err) {
+        console.error("Failed to read JSON file:", err.message);
+        return res.status(500).json({ error: "Failed to read data file" });
     }
 
-    // ✅ FIX: Ensure correct ordering
-    sql += ` ORDER BY date ASC`;
+    let buses;
+    try {
+        buses = JSON.parse(rawData);
+    } catch (err) {
+        console.error("Invalid JSON format:", err.message);
+        return res.status(500).json({ error: "Data file is corrupted" });
+    }
 
-    db.query(sql, params, (err, results) => {
-        if (err) {
-            console.error("Database query failed:", err.message);
-            return res.status(500).json({ error: "Database query failed" });
-        }
+    // Filter results
+    buses = buses.filter(bus => 
+        bus.origin.toLowerCase() === from &&
+        bus.destination.toLowerCase() === to &&
+        (!date || bus.date === date)
+    );
 
-        const buses = results.map(formatBus);
-        const analytics = calculateAnalytics(buses);
+    const formattedBuses = buses.map(formatBus);
+    const analytics = calculateAnalytics(formattedBuses);
 
-        res.json({ buses, analytics });
-    });
+    res.json({ buses: formattedBuses, analytics });
 });
 
 // ---------------- SERVER ---------------- //
