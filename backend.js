@@ -2,9 +2,19 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const cors = require("cors"); // ✅ Added CORS
 
 const app = express();
 
+// ---------------- CORS ---------------- //
+// Allow requests from your Netlify frontend
+app.use(cors({
+    origin: "https://sokky.netlify.app", // replace with your Netlify URL
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"]
+}));
+
+// ---------------- MIDDLEWARE ---------------- //
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -40,7 +50,6 @@ function formatBus(bus) {
         price: Number(bus.price) || 0,
         available_seats: Number(bus.available_seats) || 0,
         distance: Number(bus.distance) || 0,
-        // ✅ Fixed: check if array, don't split
         amenities: Array.isArray(bus.amenities) ? bus.amenities : [],
         route: Array.isArray(bus.route) ? bus.route : []
     };
