@@ -40,12 +40,9 @@ function formatBus(bus) {
         price: Number(bus.price) || 0,
         available_seats: Number(bus.available_seats) || 0,
         distance: Number(bus.distance) || 0,
-        amenities: bus.amenities
-            ? bus.amenities.split(",").map(a => a.trim())
-            : [],
-        route: bus.route
-            ? bus.route.split("→").map(r => r.trim())
-            : []
+        // ✅ Fixed: check if array, don't split
+        amenities: Array.isArray(bus.amenities) ? bus.amenities : [],
+        route: Array.isArray(bus.route) ? bus.route : []
     };
 }
 
